@@ -1,6 +1,6 @@
 ## <div align='center'>About WebGL</div>
 
-<br>WebGL is a rasterization API used for rendering graphics directly within a webpage, based off of OpenGL. WebGL uses JavaScript and offers many features, being widely used for 3D programs within HTML websites.<br><br>WebGL has two versions, the standard WebGL, and WebGL2. WebGL2 is a more modern version that offers many more features compared to WebGL1. WebGL2 is backwards compatible with WebGL1.<br><br>WebGL utilizes your computer's Graphics Processing Unit to rasterize pixels at lightning speeds. It takes information you provide and does math to color pixels.<br><br>Most modern browsers and machines support WebGL1. WebGL2's support may be less, but still quite high. It is supported by major browsers, but some require the experimental version.<br><br>WebGL programs run using a special shader language similar to C++, called Graphics Library Shader Language(GLSL). GLSL is a type-strict language used to write the vertex and fragment shaders of a WebGL program.<br><br>Most of the WebGL API is boilerplate code, and the rest is for rendering.
+<br>WebGL is a rasterization API used for rendering graphics directly within a webpage, based off of OpenGL. WebGL uses JavaScript and offers many features, being widely used for 3D programs within HTML websites.<br><br>WebGL has two versions, the basic WebGL1, and WebGL2. WebGL2 is a more modern version that offers many more features compared to WebGL1. WebGL2 is backwards compatible with WebGL1 and is better, making WebGL1 pointless.<br><br>WebGL utilizes your computer's Graphics Processing Unit to rasterize pixels at lightning speeds. It takes information you provide and does math to color pixels.<br><br>Most modern browsers and machines support WebGL1. WebGL2's support may be less, but still quite high. It is supported by major browsers, but some require the experimental version.<br><br>WebGL programs run using a special shader language similar to C++, called Graphics Library Shader Language(GLSL). GLSL is a type-strict language used to write the vertex and fragment shaders of a WebGL program.<br><br>Most of the WebGL API is boilerplate code, and the rest is for rendering.
 
 ## <div align='center'>Rendering a Triangle</div>
 
@@ -192,7 +192,7 @@ let vertexShaderCode=`#version 300 es
     }
 `
 ```
-<br>In the fragment shader, we set the color based on the varying value passed in from the vertex shader.
+In the fragment shader, we set the color based on the varying value passed in from the vertex shader.
 
 ```
 let fragmentShaderCode=`#version 300 es
@@ -577,6 +577,105 @@ gl.drawElements(gl.TRIANGLES,index.length,gl.UNSIGNED_SHORT,0)
 ```
 You should see a rectangle. With indexed rendering, the amount of vertices computed is 4, with no excess duplicate vertices!
 
+## <div align='center'>3D Graphics</div>
+<br>In this section, we're going to make a 3D spinning cube using matrices!<br><br>3D can be accomplished by creating and then transforming 3D vertices. 3D vertices are atttributed as a _vec3_.<br><br>Matrices are basically large grids of numbers that can be used to transform vectors(translate, scale, rotate). In 3D programs, 4x4 matrices are used as they are able to perform translation transformations.<br><br>Get started with the code from the **Indexed Rendering** section. We are first going to make the vertices 3D, add vertex colors(see **Varyings & More Attributes**) and a matrix uniform.<br><br>Updated shaders:
+
+```
+let vertexShaderCode=`#version 300 es
+    
+    precision mediump float;
+    
+    in vec3 vertPos;
+    in vec3 vertColor;
+    
+    //the matrix for transformations
+    uniform mat4 modelMatrix;
+    
+    out vec3 pixColor;
+    
+    void main(){
+        
+        pixColor=vertColor;
+        
+        //transform the vec3 by turning it into a vec4 then multiply with the mat4
+        gl_Position=modelMatrix*vec4(vertPos,1);
+    }
+`
+
+let fragmentShaderCode=`#version 300 es
+    
+    precision mediump float;
+    
+    in vec3 pixColor;
+    
+    out vec4 fragColor;
+    
+    void main(){
+        
+        fragColor=vec4(pixColor,1);
+    }
+`
+```
+Updated mesh:
+```
+let verts=[
+    
+    //top left front, red
+    -0.5,0.5,0.5,   1,0,0,
+    //bottom left front, green
+    -0.5,-0.5,0.5,  0,1,0,
+    //bottom right front, blue
+    0.5,-0.5,0.5,  0,0,1,
+    //top right front, yellow
+    0.5,0.5,0.5,  1,1,0,
+]
+
+let index=[
+    
+    //front side
+    0,1,2,
+    0,2,3
+    
+]
+```
+Buffer creation stays the same. Updated attribute locations and pointers:
+```
+let vertPosLocation=gl.getAttribLocation(program,'vertPos')
+gl.enableVertexAttribArray(vertPosLocation)
+
+let vertColorLocation=gl.getAttribLocation(program,'vertColor')
+gl.enableVertexAttribArray(vertColorLocation)
+
+//bytes per vertex. the total amount of values per a vertex(now it's 6(x,y,z,r,g,b)) multiplied by 4(which is the amount of bytes in a float32)
+let bpv=24
+
+//3 values for the position, 0 bytes before the position values
+gl.vertexAttribPointer(vertPosLocation,3,gl.FLOAT,gl.FALSE,bpv,0)
+
+//3 values for the color, 3 values(x, y & z coords) * 4 bytes per value = 12 bytes before the color values
+gl.vertexAttribPointer(vertColorLocation,3,gl.FLOAT,gl.FALSE,bpv,12)
+```
+Getting and setting the matrix uniform:
+```
+let modelMatrixLocation=gl.getUniformLocation(program,'modelMatrix')
+
+//an currently an identity matrix, which applies no transformations
+let modelMatrix=new Float32Array([
+    
+    1,0,0,0,
+    0,1,0,0,
+    0,0,1,0,
+    0,0,0,1
+])
+
+gl.uniformMatrix4fv(modelMatrixLocation,false,modelMatrix)
+```
+After adding the changes, you should see a multi-colored square.
+
+
+
+
+wip blah blah
 
 
 
