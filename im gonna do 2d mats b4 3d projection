@@ -577,19 +577,19 @@ gl.drawElements(gl.TRIANGLES,index.length,gl.UNSIGNED_SHORT,0)
 ```
 You should see a rectangle. With indexed rendering, the amount of vertices computed is 4, with no excess duplicate vertices!
 
-## <div align='center'>3D Graphics</div>
-<br>In this section, we're going to make a 3D spinning cube using matrices!<br><br>3D can be accomplished by creating and then transforming 3D vertices. 3D vertices are atttributed as a _vec3_.<br><br>Matrices are basically large grids of numbers that can be used to transform vectors(translate, scale, rotate). In 3D programs, 4x4 matrices are used as they are able to perform translation transformations.<br><br>Get started with the code from the **Indexed Rendering** section. We are first going to make the vertices 3D, add vertex colors(see **Varyings & More Attributes**) and a matrix uniform.<br><br>Updated shaders:
+## <div align='center'>2D Matrices & Transformations</div>
+<br>In this section, we're going to learn how matrices work and how to apply transformations with them.<br><br>Matrices are basically grids of numbers that can be used to transform vectors(translate, scale, rotate). In 2D programs, 3x3 matrices are used as they are able to perform translation transformations. 2x2 matrices can only scale and rotate in 2D.<br><br>Get started with the code from the **Indexed Rendering** section. We are first going to add vertex colors(see **Varyings & More Attributes**) and a matrix uniform.<br><br>Updated shaders:
 
 ```
 let vertexShaderCode=`#version 300 es
     
     precision mediump float;
     
-    in vec3 vertPos;
+    in vec2 vertPos;
     in vec3 vertColor;
     
     //the matrix for transformations
-    uniform mat4 modelMatrix;
+    uniform mat3 modelMatrix;
     
     out vec3 pixColor;
     
@@ -597,8 +597,9 @@ let vertexShaderCode=`#version 300 es
         
         pixColor=vertColor;
         
-        //transform the vec3 by turning it into a vec4 then multiply with the mat4
-        gl_Position=modelMatrix*vec4(vertPos,1);
+        //transform the vec2 by turning it into a vec3 then multiply with the mat3
+        //gl_Position needs to be a vec4 so we add another useless component
+        gl_Position=vec4(modelMatrix*vec3(vertPos,1),1);
     }
 `
 
@@ -620,14 +621,14 @@ Updated mesh:
 ```
 let verts=[
     
-    //top left front, red
-    -0.5,0.5,0.5,   1,0,0,
-    //bottom left front, green
-    -0.5,-0.5,0.5,  0,1,0,
-    //bottom right front, blue
-    0.5,-0.5,0.5,  0,0,1,
+    //top left, red
+    -0.5,0.5,   1,0,0,
+    //bottom left, green
+    -0.5,-0.5,  0,1,0,
+    //bottom right, blue
+    0.5,-0.5,  0,0,1,
     //top right front, yellow
-    0.5,0.5,0.5,  1,1,0,
+    0.5,0.5,  1,1,0,
 ]
 
 let index=[
@@ -646,36 +647,152 @@ gl.enableVertexAttribArray(vertPosLocation)
 let vertColorLocation=gl.getAttribLocation(program,'vertColor')
 gl.enableVertexAttribArray(vertColorLocation)
 
-//bytes per vertex. the total amount of values per a vertex(now it's 6(x,y,z,r,g,b)) multiplied by 4(which is the amount of bytes in a float32)
-let bpv=24
+//bytes per vertex. the total amount of values per a vertex(now it's 5(x,y,r,g,b)) multiplied by 4(which is the amount of bytes in a float32)
+let bpv=20
 
-//3 values for the position, 0 bytes before the position values
-gl.vertexAttribPointer(vertPosLocation,3,gl.FLOAT,gl.FALSE,bpv,0)
+//2 values for the position, 0 bytes before the position values
+gl.vertexAttribPointer(vertPosLocation,2,gl.FLOAT,gl.FALSE,bpv,0)
 
-//3 values for the color, 3 values(x, y & z coords) * 4 bytes per value = 12 bytes before the color values
-gl.vertexAttribPointer(vertColorLocation,3,gl.FLOAT,gl.FALSE,bpv,12)
+//3 values for the color, 2 values(x & y coords) * 4 bytes per value = 12 bytes before the color values
+gl.vertexAttribPointer(vertColorLocation,3,gl.FLOAT,gl.FALSE,bpv,8)
 ```
 Getting and setting the matrix uniform:
 ```
 let modelMatrixLocation=gl.getUniformLocation(program,'modelMatrix')
 
-//an currently an identity matrix, which applies no transformations
+//currently an identity matrix, which applies no transformations
 let modelMatrix=new Float32Array([
     
-    1,0,0,0,
-    0,1,0,0,
-    0,0,1,0,
-    0,0,0,1
+    1,0,0,
+    0,1,0,
+    0,0,1
 ])
 
-gl.uniformMatrix4fv(modelMatrixLocation,false,modelMatrix)
+//use gl.uniformMatrix3fv for 3x3 matrices
+gl.uniformMatrix3fv(modelMatrixLocation,false,modelMatrix)
 ```
-After adding the changes, you should see a multi-colored square.
+After adding the changes, you should see a multi-colored square.<br><br>Now, we're going to get started with the matrix math. You can perform simple operations like addition, substraction, and multiplication on matrices.<br><br>In WebGL graphics, only matrix multiplication is required. Multipling matrices "stack" transformations on top of each other. The code for multiplying 2 3x3 matrices follows:
+```
+//params "out": the output matrix(array)
+//params "a": a matrix to be multiplied with "b" 
+//params "b": a matrix to be multiplied with "a"
+
+function mult3x3Mat(out, a, b) {
+    
+    let a00 = a[0],
+        a01 = a[1],
+        a02 = a[2];
+    
+    let a10 = a[3],
+        a11 = a[4],
+        a12 = a[5];
+    
+    let a20 = a[6],
+        a21 = a[7],
+        a22 = a[8];
+    
+    let b00 = b[0],
+        b01 = b[1],
+        b02 = b[2];
+    
+    let b10 = b[3],
+        b11 = b[4],
+        b12 = b[5];
+    
+    let b20 = b[6],
+        b21 = b[7],
+        b22 = b[8];
+    
+    out[0] = b00 * a00 + b01 * a10 + b02 * a20;
+    out[1] = b00 * a01 + b01 * a11 + b02 * a21;
+    out[2] = b00 * a02 + b01 * a12 + b02 * a22;
+    out[3] = b10 * a00 + b11 * a10 + b12 * a20;
+    out[4] = b10 * a01 + b11 * a11 + b12 * a21;
+    out[5] = b10 * a02 + b11 * a12 + b12 * a22;
+    out[6] = b20 * a00 + b21 * a10 + b22 * a20;
+    out[7] = b20 * a01 + b21 * a11 + b22 * a21;
+    out[8] = b20 * a02 + b21 * a12 + b22 * a22;
+    
+    return out;
+}
 
 
+@ Credits to glMatrix
+```
+To apply transformations, you can directly perform a transformation on a matrix, or multiply a matrix with another matrix with the the transformations already in place.<br><br>Often, it's best to reduce matrix operations for performance, by computing them once with JS, and then uniforming them to the GPU. The technique of directly applying transformations on a single matrix is favored. This means that matrix multiplication may be used less often or not at all.<br><br>Here are ways to transform 3x3 matrices:
+```
+function translate3x3Mat(out, a, x, y) {
+    
+    let a00 = a[0],
+        a01 = a[1],
+        a02 = a[2],
+        a10 = a[3],
+        a11 = a[4],
+        a12 = a[5],
+        a20 = a[6],
+        a21 = a[7],
+        a22 = a[8];
+    
+    out[0] = a00;
+    out[1] = a01;
+    out[2] = a02;
+    out[3] = a10;
+    out[4] = a11;
+    out[5] = a12;
+    out[6] = x * a00 + y * a10 + a20;
+    out[7] = x * a01 + y * a11 + a21;
+    out[8] = x * a02 + y * a12 + a22;
+    
+    return out;
+}
+
+function rotate3x3Mat(out, a, rad) {
+    
+    let a00 = a[0],
+        a01 = a[1],
+        a02 = a[2],
+        a10 = a[3],
+        a11 = a[4],
+        a12 = a[5],
+        a20 = a[6],
+        a21 = a[7],
+        a22 = a[8],
+        s = Math.sin(rad),
+        c = Math.cos(rad);
+    
+    out[0] = c * a00 + s * a10;
+    out[1] = c * a01 + s * a11;
+    out[2] = c * a02 + s * a12;
+    out[3] = c * a10 - s * a00;
+    out[4] = c * a11 - s * a01;
+    out[5] = c * a12 - s * a02;
+    out[6] = a20;
+    out[7] = a21;
+    out[8] = a22;
+    
+    return out;
+}
+
+function scale3x3Mat(out, a, x, y) {
+
+    out[0] = x * a[0];
+    out[1] = x * a[1];
+    out[2] = x * a[2];
+    out[3] = y * a[3];
+    out[4] = y * a[4];
+    out[5] = y * a[5];
+    out[6] = a[6];
+    out[7] = a[7];
+    out[8] = a[8];
+    
+    return out;
+}
 
 
-wip blah blah
+@ Credits to glMatrix
+```
+
+
 
 
 
