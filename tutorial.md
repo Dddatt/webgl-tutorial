@@ -1,10 +1,10 @@
 ## <div align='center'>About WebGL</div>
 
-<br>WebGL is a rasterization API used for rendering graphics directly within a webpage, based off of OpenGL. WebGL uses JavaScript and offers many features, being widely used for 3D programs within HTML websites.<br><br>WebGL has two versions, the basic WebGL1, and WebGL2. WebGL2 is a more modern version that offers many more features compared to WebGL1. WebGL2 is backwards compatible with WebGL1 and is better, making WebGL1 pointless.<br><br>WebGL utilizes your computer's Graphics Processing Unit to rasterize pixels at lightning speeds. It takes information you provide and does math to color pixels.<br><br>Most modern browsers and machines support WebGL1. WebGL2's support may be less, but still quite high. It is supported by major browsers, but some require the experimental version.<br><br>WebGL programs run using a special shader language similar to C++, called Graphics Library Shader Language(GLSL). GLSL is a type-strict language used to write the vertex and fragment shaders of a WebGL program.<br><br>Most of the WebGL API is boilerplate code, and the rest is for rendering.
+<br>WebGL is a rasterization API used for rendering graphics directly within a webpage, based off of OpenGL. WebGL uses JavaScript and offers many features, being widely used for 3D programs within HTML websites.<br><br>WebGL has two versions, the basic WebGL1, and WebGL2. WebGL2 is a more modern version that offers many more features compared to WebGL1. WebGL2 is backwards compatible with WebGL1 and is better, making WebGL1 pointless. **In this tutorial, we'll be strictly using WebGL2.**<br><br>WebGL utilizes your computer's Graphics Processing Unit to rasterize pixels at lightning speeds. It takes information you provide and does math to color pixels.<br><br>Most modern browsers and machines support WebGL1. WebGL2's support may be less, but still quite high. It is supported by major browsers, but some require the experimental version.<br><br>WebGL programs run using a special shader language similar to C++, called Graphics Library Shader Language(GLSL). GLSL is a type-strict language used to write the vertex and fragment shaders of a WebGL program.<br><br>Most of the WebGL API is boilerplate code, and the rest is for rendering.
 
 ## <div align='center'>Rendering a Triangle</div>
 
-<br>To get started with WebGL, you'll first need to prepare an HTML program. In this tutorial, we'll be strictly using WebGL2.<br><br>Create a canvas element that'll be used for rendering the graphics.
+<br>To get started with WebGL, you'll first need to prepare an HTML program. Create a canvas element that'll be used for rendering the graphics.
 
 ```
 <canvas id='myCanvas' width='500' height='500'></canvas>
@@ -719,7 +719,7 @@ function mult3x3Mat(out, a, b) {
 
 @ Credits to glMatrix
 ```
-To apply transformations, you can directly perform a transformation on a matrix, or multiply a matrix with another matrix with the the transformations already in place.<br><br>Often, it's best to reduce matrix operations for performance, by computing them once with JS, and then uniforming them to the GPU. The technique of directly applying transformations on a single matrix is favored. This means that matrix multiplication may be used less often or not at all.<br><br>Here are ways to transform 3x3 matrices:
+To apply transformations, you can directly perform a transformation on a matrix, or multiply a matrix with another matrix with the the transformations already in place.<br><br>Often, it's best to reduce matrix operations for performance, by computing them once with JS, and then uniforming them to the GPU. The technique of directly applying transformations on a single matrix is favored. It is done by manually optimizing and simplifying the process of creating an alternate matrix with the transformations and multiplying. This means that matrix multiplication may be used less often or not at all.<br><br>Here are ways to transform 3x3 matrices:
 ```
 function translate3x3Mat(out, a, x, y) {
     
@@ -791,10 +791,33 @@ function scale3x3Mat(out, a, x, y) {
 
 @ Credits to glMatrix
 ```
+Because matrix transformations stack on top of each other, transformations applied are affected by previous transformations. For example, if you translate a mesh and rotate it, it will rotate about its center. If you rotate it then translate it, it will be rotated then translated, but the translation vector will be rotated too. This is the same for transformations done by matrix multiplication(they are the same process, but multiplication is simplied into the direct transformations).<br><br>With the functions in place, you can now transform your geometry. Here's an example of what you can do to the model matrix:
+```
+let x=0.3,
+    y=-0.3,
+    rot=3.5,
+    sx=0.7,
+    sy=0.5
 
+translate3x3Mat(modelMatrix,modelMatrix,x,y)
+rotate3x3Mat(modelMatrix,modelMatrix,rot)
+scale3x3Mat(modelMatrix,modelMatrix,sx,sy)
+```
+You can change the numbers to see the effects on the mesh. You can also change the mesh by reordering the transformation operations.<br><br>Important!
+- The "default" matrix is called an identity matrix, and goes like
+```
+[
+    1,0,0,
+    0,1,0,
+    0,0,1
+]
+```
+as you already saw above. It applies no transformations with transforming a vector and does nothing when multiplied with a matrix. Remember this!
+- When providing a matrix as a uniform, make sure the supplied matrix is a typed array! Float32Array is very commonly used. This will result in a large performance boost, possible up to x9 speed!
 
+## <div align='center'>3D Graphics</div>
 
-
+<br>3D graphics are quite simple if you can understand the matrix math. Essentially, matrix transformations move and rotate vertices, then projects them, resulting in a position. Perspective is applied automatically by WebGL, and that's basically it.<br><br>The complicated parts of 3D graphics with WebGL(espeacially WebGL2) are the techniques you can utilize to improve quality and performance.
 
 
 
