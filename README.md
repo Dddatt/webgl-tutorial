@@ -653,7 +653,7 @@ let bpv=20
 //2 values for the position, 0 bytes before the position values
 gl.vertexAttribPointer(vertPosLocation,2,gl.FLOAT,gl.FALSE,bpv,0)
 
-//3 values for the color, 2 values(x & y coords) * 4 bytes per value = 12 bytes before the color values
+//3 values for the color, 2 values(x & y coords) * 4 bytes per value = 8 bytes before the color values
 gl.vertexAttribPointer(vertColorLocation,3,gl.FLOAT,gl.FALSE,bpv,8)
 ```
 Getting and setting the matrix uniform:
@@ -815,9 +815,404 @@ You can change the numbers to see the effects on the mesh. You can also change t
 as you already saw above. It applies no transformations with transforming a vector and does nothing when multiplied with a matrix. Remember this!
 - When providing a matrix as a uniform, make sure the supplied matrix is a typed array! Float32Array is very commonly used. This will result in a large performance boost, possible up to x9 speed!
 
-## <div align='center'>3D Graphics</div>
+## <div align='center'>3D Transformations</div>
 
-<br>3D graphics are quite simple if you can understand the matrix math. Essentially, matrix transformations move and rotate vertices, then projects them, resulting in a position. Perspective is applied automatically by WebGL, and that's basically it.<br><br>The complicated parts of 3D graphics with WebGL(espeacially WebGL2) are the techniques you can utilize to improve quality and performance.
+<br>This section is the first part of 3D graphics. The next part is the **3D Graphics** section.<br><br>3D graphics are quite simple if you can understand the matrix math. Essentially, matrix transformations move and rotate vertices, then projects them, resulting in a position. Perspective is applied automatically by WebGL, and that's basically it.<br><br>The complicated parts of 3D graphics with WebGL(espeacially WebGL2) are the techniques you can utilize to improve quality and performance.<br><br>To get started with 3D transformations, we need to make a 3D mesh. Starting with the code from the **2D Matrices & Transformations** section, turn the attribute _"vertPos"_ into a vec3 and supply another number(the z position) for each vertex's position. We also need to turn the mat3 _"modelMatrix"_ into a mat4.
+```
+let vertexShaderCode=`#version 300 es
+    
+    precision mediump float;
+    
+    //vertPos is now a vec3! x, y, and z values!
+    in vec3 vertPos;
+    
+    in vec3 vertColor;
+    
+    //the model matrix is now a mat4! 4x4 matrices are needed for 3D stuff
+    uniform mat4 modelMatrix;
+    
+    out vec3 pixColor;
+    
+    void main(){
+        
+        pixColor=vertColor;
+        
+        //transform the vec3 by turning it into a vec4 then multiply with the mat4
+        gl_Position=modelMatrix*vec4(vertPos,1);
+    }
+`
+```
+The new vertex buffer, now with z positions for each vertex. The z positions right now are set as -0.5, which is a bit closer to the camera.
+```
+let verts=[
+    
+    //top left front, red
+    -0.5,0.5,-0.5,   1,0,0,
+    //bottom left front, green
+    -0.5,-0.5,-0.5,  0,1,0,
+    //bottom right front, blue
+    0.5,-0.5,-0.5,  0,0,1,
+    //top right front, yellow
+    0.5,0.5,-0.5,  1,1,0,
+]
+```
+Buffer creation stays the same, of course. Now we update the attribute pointers to specify the new format of the mesh's vertices.
+```
+//bytes per vertex. the total amount of values per a vertex(now it's 6(x,y,z,r,g,b)) multiplied by 4(which is the amount of bytes in a float32)
+let bpv=24
+
+//3 values for the position, 0 bytes before the position values
+gl.vertexAttribPointer(vertPosLocation,3,gl.FLOAT,gl.FALSE,bpv,0)
+
+//3 values for the color, 3 values(x & y &z coords) * 4 bytes per value = 12 bytes before the color values
+gl.vertexAttribPointer(vertColorLocation,3,gl.FLOAT,gl.FALSE,bpv,12)
+```
+The _"modelMatrix"_ is now a 4x4 matrix. We set it to an identity matrix for now.
+```
+//currently an identity matrix, which applies no transformations
+let modelMatrix=new Float32Array([
+    
+    1,0,0,0,
+    0,1,0,0,
+    0,0,1,0,
+    0,0,0,1
+])
+
+//use gl.uniformMatrix4fv for 4x4 matrices
+gl.uniformMatrix4fv(modelMatrixLocation,false,modelMatrix)
+```
+The _"gl.drawElements()"_ function stays the same. Now, you should see the same square again.<br><br>Transformations with 4x4 matrices are similar to 3x3 ones. We use 3x3 matrices for 2D, and then 4x4 matrices for 3D. In 3D, transformations and matrix operations are nearly the same.<br><br>Scale and translation transformations now use x, y, and z values or all the axes, instead of just x and y. However, in 3D, you have 3 axes you can rotate objects about. Here is the code for each types of useful 4x4 operations and transformations:
+```
+function mult4x4Mat(out, a, b) {
+
+    let a00 = a[0],
+        a01 = a[1],
+        a02 = a[2],
+        a03 = a[3];
+    
+    let a10 = a[4],
+        a11 = a[5],
+        a12 = a[6],
+        a13 = a[7];
+    
+    let a20 = a[8],
+        a21 = a[9],
+        a22 = a[10],
+        a23 = a[11];
+    
+    let a30 = a[12],
+        a31 = a[13],
+        a32 = a[14],
+        a33 = a[15];
+    
+    let b0 = b[0],
+        b1 = b[1],
+        b2 = b[2],
+        b3 = b[3];
+    
+    out[0] = b0 * a00 + b1 * a10 + b2 * a20 + b3 * a30;
+    out[1] = b0 * a01 + b1 * a11 + b2 * a21 + b3 * a31;
+    out[2] = b0 * a02 + b1 * a12 + b2 * a22 + b3 * a32;
+    out[3] = b0 * a03 + b1 * a13 + b2 * a23 + b3 * a33;
+    
+    b0 = b[4];
+    b1 = b[5];
+    b2 = b[6];
+    b3 = b[7];
+    
+    out[4] = b0 * a00 + b1 * a10 + b2 * a20 + b3 * a30;
+    out[5] = b0 * a01 + b1 * a11 + b2 * a21 + b3 * a31;
+    out[6] = b0 * a02 + b1 * a12 + b2 * a22 + b3 * a32;
+    out[7] = b0 * a03 + b1 * a13 + b2 * a23 + b3 * a33;
+    
+    b0 = b[8];
+    b1 = b[9];
+    b2 = b[10];
+    b3 = b[11];
+    
+    out[8] = b0 * a00 + b1 * a10 + b2 * a20 + b3 * a30;
+    out[9] = b0 * a01 + b1 * a11 + b2 * a21 + b3 * a31;
+    out[10] = b0 * a02 + b1 * a12 + b2 * a22 + b3 * a32;
+    out[11] = b0 * a03 + b1 * a13 + b2 * a23 + b3 * a33;
+    
+    b0 = b[12];
+    b1 = b[13];
+    b2 = b[14];
+    b3 = b[15];
+    
+    out[12] = b0 * a00 + b1 * a10 + b2 * a20 + b3 * a30;
+    out[13] = b0 * a01 + b1 * a11 + b2 * a21 + b3 * a31;
+    out[14] = b0 * a02 + b1 * a12 + b2 * a22 + b3 * a32;
+    out[15] = b0 * a03 + b1 * a13 + b2 * a23 + b3 * a33;
+    
+    return out;
+}
+
+function translate4x4Mat(out, a, x, y, z) {
+    
+    let a00, a01, a02, a03;
+    let a10, a11, a12, a13;
+    let a20, a21, a22, a23;
+    
+    if (a === out) {
+        
+        out[12] = a[0] * x + a[4] * y + a[8] * z + a[12];
+        out[13] = a[1] * x + a[5] * y + a[9] * z + a[13];
+        out[14] = a[2] * x + a[6] * y + a[10] * z + a[14];
+        out[15] = a[3] * x + a[7] * y + a[11] * z + a[15];
+        
+    } else {
+        
+        a00 = a[0];
+        a01 = a[1];
+        a02 = a[2];
+        a03 = a[3];
+        a10 = a[4];
+        a11 = a[5];
+        a12 = a[6];
+        a13 = a[7];
+        a20 = a[8];
+        a21 = a[9];
+        a22 = a[10];
+        a23 = a[11];
+        out[0] = a00;
+        out[1] = a01;
+        out[2] = a02;
+        out[3] = a03;
+        out[4] = a10;
+        out[5] = a11;
+        out[6] = a12;
+        out[7] = a13;
+        out[8] = a20;
+        out[9] = a21;
+        out[10] = a22;
+        out[11] = a23;
+        out[12] = a00 * x + a10 * y + a20 * z + a[12];
+        out[13] = a01 * x + a11 * y + a21 * z + a[13];
+        out[14] = a02 * x + a12 * y + a22 * z + a[14];
+        out[15] = a03 * x + a13 * y + a23 * z + a[15];
+        
+    }
+    
+    return out;
+}
+
+function rotateX4x4Mat(out, a, rad) {
+    
+    let s = Math.sin(rad);
+    let c = Math.cos(rad);
+    let a10 = a[4];
+    let a11 = a[5];
+    let a12 = a[6];
+    let a13 = a[7];
+    let a20 = a[8];
+    let a21 = a[9];
+    let a22 = a[10];
+    let a23 = a[11];
+    
+    if (a !== out) {
+        
+        out[0] = a[0];
+        out[1] = a[1];
+        out[2] = a[2];
+        out[3] = a[3];
+        out[12] = a[12];
+        out[13] = a[13];
+        out[14] = a[14];
+        out[15] = a[15];
+    }
+    
+    out[4] = a10 * c + a20 * s;
+    out[5] = a11 * c + a21 * s;
+    out[6] = a12 * c + a22 * s;
+    out[7] = a13 * c + a23 * s;
+    out[8] = a20 * c - a10 * s;
+    out[9] = a21 * c - a11 * s;
+    out[10] = a22 * c - a12 * s;
+    out[11] = a23 * c - a13 * s;
+    
+    return out;
+}
+
+function rotateY4x4Mat(out, a, rad) {
+    
+    let s = Math.sin(rad);
+    let c = Math.cos(rad);
+    
+    let a00 = a[0];
+    let a01 = a[1];
+    let a02 = a[2];
+    let a03 = a[3];
+    let a20 = a[8];
+    let a21 = a[9];
+    let a22 = a[10];
+    let a23 = a[11];
+    
+    if (a !== out) {
+        
+        out[4] = a[4];
+        out[5] = a[5];
+        out[6] = a[6];
+        out[7] = a[7];
+        out[12] = a[12];
+        out[13] = a[13];
+        out[14] = a[14];
+        out[15] = a[15];
+    }
+    
+    out[0] = a00 * c - a20 * s;
+    out[1] = a01 * c - a21 * s;
+    out[2] = a02 * c - a22 * s;
+    out[3] = a03 * c - a23 * s;
+    out[8] = a00 * s + a20 * c;
+    out[9] = a01 * s + a21 * c;
+    out[10] = a02 * s + a22 * c;
+    out[11] = a03 * s + a23 * c;
+    
+    return out;
+}
+
+function rotateZ4x4Mat(out, a, rad) {
+
+    let s = Math.sin(rad);
+    let c = Math.cos(rad);
+    
+    let a00 = a[0];
+    let a01 = a[1];
+    let a02 = a[2];
+    let a03 = a[3];
+    let a10 = a[4];
+    let a11 = a[5];
+    let a12 = a[6];
+    let a13 = a[7];
+    
+    if (a !== out) {
+        
+        out[8] = a[8];
+        out[9] = a[9];
+        out[10] = a[10];
+        out[11] = a[11];
+        out[12] = a[12];
+        out[13] = a[13];
+        out[14] = a[14];
+        out[15] = a[15];
+    }
+    
+    out[0] = a00 * c + a10 * s;
+    out[1] = a01 * c + a11 * s;
+    out[2] = a02 * c + a12 * s;
+    out[3] = a03 * c + a13 * s;
+    out[4] = a10 * c - a00 * s;
+    out[5] = a11 * c - a01 * s;
+    out[6] = a12 * c - a02 * s;
+    out[7] = a13 * c - a03 * s;
+    
+    return out;
+}
+
+function scale4x4Mat(out, a, x, y, z) {
+
+    out[0] = a[0] * x;
+    out[1] = a[1] * x;
+    out[2] = a[2] * x;
+    out[3] = a[3] * x;
+    out[4] = a[4] * y;
+    out[5] = a[5] * y;
+    out[6] = a[6] * y;
+    out[7] = a[7] * y;
+    out[8] = a[8] * z;
+    out[9] = a[9] * z;
+    out[10] = a[10] * z;
+    out[11] = a[11] * z;
+    out[12] = a[12];
+    out[13] = a[13];
+    out[14] = a[14];
+    out[15] = a[15];
+    
+    return out;
+}
+
+
+@ Credits to glMatrix
+```
+With the transformation functions in place, you can now transform the mesh.
+```
+let rx=0,
+    ry=0.8,
+    rz=0
+
+rotateX4x4Mat(modelMatrix,modelMatrix,rx)
+rotateY4x4Mat(modelMatrix,modelMatrix,ry)
+rotateZ4x4Mat(modelMatrix,modelMatrix,rz)
+```
+It's hard to tell what the 3D transformations do, so let's animate it.
+```
+let dt,then=0,time=0
+
+function loop(now){
+    
+    dt=(now-then)*0.001
+    time+=dt
+    
+    gl.clearColor(0.1,0,0,1)
+    gl.clear(gl.COLOR_BUFFER_BIT)
+    
+    let modelMatrix=new Float32Array([
+        
+        1,0,0,0,
+        0,1,0,0,
+        0,0,1,0,
+        0,0,0,1
+    ])
+    
+    let rx=time*0.1,
+        ry=time,
+        rz=0
+    
+    rotateX4x4Mat(modelMatrix,modelMatrix,rx)
+    rotateY4x4Mat(modelMatrix,modelMatrix,ry)
+    rotateZ4x4Mat(modelMatrix,modelMatrix,rz)
+    
+    gl.uniformMatrix4fv(modelMatrixLocation,false,modelMatrix)
+    
+    gl.drawElements(gl.TRIANGLES,index.length,gl.UNSIGNED_SHORT,0)
+    
+    
+    then=now
+    window.requestAnimationFrame(loop)
+}
+
+loop(0)
+```
+It's still quite difficult to see, but with some imagination, you can make a sense of what is happening.<br><br>In the next section, we'll add cameras and perspective to create realistic 3D graphics.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
